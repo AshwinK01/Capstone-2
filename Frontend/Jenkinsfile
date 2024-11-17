@@ -1,20 +1,28 @@
 pipeline {
     agent any
+    
+    tools {
+        nodejs 'NodeJS' // Specify the NodeJS installation configured in Jenkins
+    }
+    
     stages {
         stage('Clone Repository') {
             steps {
                 git 'https://github.com/AshwinK01/Capstone-2.git'
             }
         }
+        
         stage('Install Dependencies') {
             steps {
                 dir('Frontend') {
                     script {
+                        // Use npm from the tools configuration
                         sh 'npm install'
                     }
                 }
             }
         }
+        
         stage('Build Project') {
             steps {
                 dir('Frontend') {
@@ -22,6 +30,7 @@ pipeline {
                 }
             }
         }
+        
         stage('Build Docker Image') {
             steps {
                 dir('Frontend') {
@@ -29,18 +38,25 @@ pipeline {
                 }
             }
         }
+        
         stage('Run Docker Container') {
             steps {
                 script {
-                    sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
-                    sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
+                    sh '''
+                        docker stop malware_classifier || true
+                        docker rm malware_classifier || true
+                        docker run -d -p 3000:3000 --name malware_classifier malware_classifier
+                    '''
                 }
             }
         }
     }
+    
     post {
         always {
             echo 'Pipeline finished.'
+            // Clean up workspace
+            cleanWs()
         }
         failure {
             echo 'Pipeline failed!'
@@ -50,4 +66,3 @@ pipeline {
         }
     }
 }
-
