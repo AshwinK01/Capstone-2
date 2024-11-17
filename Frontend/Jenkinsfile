@@ -10,9 +10,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Navigate to frontend folder
                     dir('frontend') {
-                        // Build the Docker image
+                        // Make sure to use 'npm install' instead of 'install'
+                        sh 'npm install'
+                        sh 'npm run build'
                         sh 'docker build -t malware_classifier .'
                     }
                 }
@@ -21,10 +22,7 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    // Stop any existing container
                     sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
-                    
-                    // Run the Docker container
                     sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
                 }
             }
