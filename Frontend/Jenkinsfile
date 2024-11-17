@@ -8,30 +8,46 @@ pipeline {
         }
         stage('Install Dependencies') {
             steps {
-                dir('frontend') {
-                    sh 'npm install'
+                dir('Frontend') {
+                    script {
+                        sh 'npm install'
+                    }
                 }
             }
         }
         stage('Build Project') {
             steps {
-                dir('frontend') {
+                dir('Frontend') {
                     sh 'npm run build'
                 }
             }
         }
         stage('Build Docker Image') {
             steps {
-                dir('frontend') {
+                dir('Frontend') {
                     sh 'docker build -t malware_classifier .'
                 }
             }
         }
         stage('Run Docker Container') {
             steps {
-                sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
-                sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
+                script {
+                    sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
+                    sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
+                }
             }
         }
     }
+    post {
+        always {
+            echo 'Pipeline finished.'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+    }
 }
+
