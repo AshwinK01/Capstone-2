@@ -1,30 +1,36 @@
 pipeline {
     agent any
-    
     stages {
         stage('Clone Repository') {
             steps {
                 git 'https://github.com/AshwinK01/Capstone-2.git'
             }
         }
+        stage('Install Dependencies') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                }
+            }
+        }
+        stage('Build Project') {
+            steps {
+                dir('frontend') {
+                    sh 'npm run build'
+                }
+            }
+        }
         stage('Build Docker Image') {
             steps {
-                script {
-                    dir('frontend') {
-                        // Make sure to use 'npm install' instead of 'install'
-                        sh 'npm install'
-                        sh 'npm run build'
-                        sh 'docker build -t malware_classifier .'
-                    }
+                dir('frontend') {
+                    sh 'docker build -t malware_classifier .'
                 }
             }
         }
         stage('Run Docker Container') {
             steps {
-                script {
-                    sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
-                    sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
-                }
+                sh 'docker stop malware_classifier || true && docker rm malware_classifier || true'
+                sh 'docker run -d -p 3000:3000 --name malware_classifier malware_classifier'
             }
         }
     }
