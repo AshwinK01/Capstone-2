@@ -11,6 +11,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 import yara
+import time
 
 app = Flask(__name__)
 CORS(app)
