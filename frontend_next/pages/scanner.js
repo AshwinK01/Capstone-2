@@ -39,7 +39,7 @@
 //     const selectedFile = e.target.files[0];
 //     setError('');
 //     setScanResults(null);
-    
+
 //     try {
 //       if (selectedFile && validateFile(selectedFile)) {
 //         setFile(selectedFile);
@@ -77,10 +77,10 @@
 
 //       const result = await response.json();
 //       setScanResults(result);
-      
+
 //       // Store results in localStorage for recovery
 //       localStorage.setItem('lastScanResults', JSON.stringify(result));
-      
+
 //     } catch (error) {
 //       console.error('Scan error:', error);
 //       setError(error.message || 'Failed to scan file. Please try again.');
@@ -201,6 +201,7 @@
 import { useState, useCallback } from 'react';
 import { Upload, AlertTriangle, Shield, ShieldCheck, Activity, FileWarning, Terminal, Download, RefreshCw } from 'lucide-react';
 import Head from 'next/head';
+import { saveAs } from 'file-saver';
 
 const MAX_FILE_SIZE = 32 * 1024 * 1024; // 32MB
 const ALLOWED_FILE_TYPES = [
@@ -244,6 +245,57 @@ export default function Scanner() {
     return severityColors[severity.toLowerCase()] || severityColors.unknown;
   };
 
+  const generateReport = (file, scanResults) => {
+    const timestamp = new Date().toISOString();
+    const threatLevel = getThreatLevel(scanResults);
+
+    const report = `
+  MALWARE SCAN REPORT
+  Generated: ${new Date().toLocaleString()}
+  ----------------------------------------
+  
+  FILE INFORMATION
+  ----------------------------------------
+  Filename: ${file.name}
+  Size: ${Math.round(file.size / 1024)}KB
+  SHA-256: ${scanResults.sha256}
+  Threat Level: ${threatLevel}
+  
+  SCAN STATISTICS
+  ----------------------------------------
+  Malicious Detections: ${scanResults.malicious}
+  Suspicious Detections: ${scanResults.suspicious}
+  Harmless Detections: ${scanResults.harmless}
+  Undetected: ${scanResults.undetected}
+  
+  CLASSIFICATION
+  ----------------------------------------
+  Type: ${scanResults.classification?.type || 'N/A'}
+  Confidence: ${scanResults.classification ? (scanResults.classification.confidence * 100).toFixed(1) + '%' : 'N/A'}
+  
+  BEHAVIORAL ANALYSIS
+  ----------------------------------------
+  ${scanResults.behaviors?.map(behavior => `
+  Type: ${behavior.type}
+  Severity: ${behavior.severity}
+  Description: ${behavior.description}
+  `).join('\n') || 'No behavioral analysis data available'}
+  
+  ----------------------------------------
+  Report End
+  `;
+
+    return new Blob([report], { type: 'text/plain;charset=utf-8' });
+  };
+
+  const handleDownloadReport = () => {
+    if (!file || !scanResults) return;
+
+    const reportBlob = generateReport(file, scanResults);
+    const fileName = `malware-scan-report-${file.name}-${new Date().toISOString()}.txt`;
+    saveAs(reportBlob, fileName);
+  };
+
   const validateFile = useCallback((file) => {
     if (!file) {
       throw new Error('Please select a file');
@@ -260,7 +312,7 @@ export default function Scanner() {
     const selectedFile = e.target.files[0];
     setError('');
     setScanResults(null);
-    
+
     try {
       if (selectedFile && validateFile(selectedFile)) {
         setFile(selectedFile);
@@ -299,7 +351,7 @@ export default function Scanner() {
       const result = await response.json();
       setScanResults(result);
       localStorage.setItem('lastScanResults', JSON.stringify(result));
-      
+
     } catch (error) {
       console.error('Scan error:', error);
       setError(error.message || 'Failed to scan file. Please try again.');
@@ -320,8 +372,8 @@ export default function Scanner() {
     <>
       <Head>
         <title>
-          {scanResults 
-            ? `${getThreatLevel(scanResults)} - Malware Analysis Results` 
+          {scanResults
+            ? `${getThreatLevel(scanResults)} - Malware Analysis Results`
             : 'Malware Scanner'}
         </title>
         <meta name="description" content="Secure file scanner for malware detection" />
@@ -428,11 +480,11 @@ export default function Scanner() {
                     px-4 py-2 rounded-full flex items-center space-x-2
                     ${getThreatLevel(scanResults) === 'Critical' ? 'bg-red-500/20 text-red-500' :
                       getThreatLevel(scanResults) === 'Warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                      'bg-green-500/20 text-green-500'}
+                        'bg-green-500/20 text-green-500'}
                   `}>
                     {getThreatLevel(scanResults) === 'Critical' ? <AlertTriangle size={20} /> :
-                     getThreatLevel(scanResults) === 'Warning' ? <FileWarning size={20} /> :
-                     <ShieldCheck size={20} />}
+                      getThreatLevel(scanResults) === 'Warning' ? <FileWarning size={20} /> :
+                        <ShieldCheck size={20} />}
                     <span>{getThreatLevel(scanResults)}</span>
                   </div>
                 </div>
@@ -490,9 +542,8 @@ export default function Scanner() {
                       </div>
                       <div className="p-4 rounded-lg bg-slate-800/50">
                         <div className="text-sm text-slate-400">Confidence Score</div>
-                        <div className={`text-xl font-semibold ${
-                          getConfidenceColor(scanResults.classification.confidence)
-                        }`}>
+                        <div className={`text-xl font-semibold ${getConfidenceColor(scanResults.classification.confidence)
+                          }`}>
                           {(scanResults.classification.confidence * 100).toFixed(1)}%
                         </div>
                       </div>
@@ -510,9 +561,8 @@ export default function Scanner() {
                       <div key={index} className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-semibold">{behavior.type}</span>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            renderBehaviorSeverity(behavior.severity)
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-sm ${renderBehaviorSeverity(behavior.severity)
+                            }`}>
                             {behavior.severity}
                           </span>
                         </div>
@@ -525,21 +575,11 @@ export default function Scanner() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {scanResults.malicious > 0 && (
-                  <button
-                    className="w-full bg-red-600/20 text-red-500 border border-red-500/30 p-4 rounded-lg 
-                             backdrop-blur-md transform transition-all hover:bg-red-500/30 flex items-center 
-                             justify-center space-x-2"
-                    onClick={() => {/* Handle quarantine */}}
-                  >
-                    <Shield size={20} />
-                    <span>Quarantine File</span>
-                  </button>
-                )}
+            
                 <button
                   className="w-full bg-slate-800/30 p-4 rounded-lg backdrop-blur-md border border-slate-700 
-                           transform transition-all hover:bg-slate-700/50 flex items-center justify-center space-x-2"
-                  onClick={() => {/* Handle report download */}}
+           transform transition-all hover:bg-slate-700/50 flex items-center justify-center space-x-2"
+                  onClick={handleDownloadReport}
                 >
                   <Download size={20} />
                   <span>Download Report</span>

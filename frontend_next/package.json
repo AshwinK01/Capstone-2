@@ -12,6 +12,7 @@
     "@api/virustotal": "file:.api/apis/virustotal",
     "axios": "^1.7.7",
     "express-rate-limit": "^7.4.1",
+    "file-saver": "^2.0.5",
     "file-type": "^19.6.0",
     "formidable": "^3.5.2",
     "lru-cache": "^11.0.2",
