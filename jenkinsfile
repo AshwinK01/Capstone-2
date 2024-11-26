@@ -1,0 +1,31 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_COMPOSE_FILE = "docker-compose.yml"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull the repository code
+                git branch: 'main', url: 'https://github.com/your-repo-url.git'
+            }
+        }
+
+        stage('Build and Run Docker Compose') {
+            steps {
+                // Build and start services
+                sh 'docker-compose down' // Stop running containers (if any)
+                sh 'docker-compose up --build -d'
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up Docker containers after the job
+            sh 'docker-compose down'
+        }
+    }
+}
