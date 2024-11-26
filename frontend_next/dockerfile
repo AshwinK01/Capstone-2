@@ -1,21 +1,21 @@
-version: "3.8"
-services:
-  backend:
-    build:
-      context: ./Backend
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./Backend:/app
-    restart: always
+# Frontend Dockerfile (frontend_next/Dockerfile)
+FROM node:18
 
-  frontend_next:
-    build:
-      context: ./frontend_next
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend_next:/app
-    restart: always
+# Set the working directory
+WORKDIR /app
+
+# Copy the frontend_next code
+COPY . /app
+
+# Install dependencies
+RUN npm install
+
+# Build the React application (production build)
+RUN npm run build
+
+# Expose the frontend port (default React port is 3000)
+EXPOSE 3000
+
+# Serve the production build using a simple server
+RUN npm install -g serve
+CMD ["serve", "-s", "build"]
