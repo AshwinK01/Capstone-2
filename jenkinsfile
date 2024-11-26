@@ -1,53 +1,48 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_COMPOSE_FILE = "docker-compose.yml"
+    }
+
     stages {
-        stage('Initialize') {
+        stage('Checkout') {
             steps {
-                echo 'Starting pipeline...'
-            }
-        }
-
-        stage('Run Background Task') {
-            steps {
-                // Run the background script without nohup
                 script {
-                    bat '''
-                        REM Running the task in the background
-                        start /B cmd /c "long_running_task.bat"
-                    '''
+                    // Ensure Git is properly configured
+                    checkout([$class: 'GitSCM', 
+                              branches: [[name: '*/main']], 
+                              userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
                 }
             }
         }
 
-        stage('Verify Process') {
+        stage('Build and Run Docker Compose') {
             steps {
-                // Ensure the process is running or completed
                 script {
-                    bat '''
-                        REM Check if the task is running (example: replace with specific check)
-                        tasklist | findstr long_running_task.bat
-                    '''
+                    // Use 'docker-compose' commands compatible with both Linux and Windows
+                    if (isUnix()) {
+                        sh 'docker-compose down || true' // Ensure the command doesn't fail if no containers are running
+                        sh 'docker-compose up --build -d'
+                    } else {
+                        bat 'docker-compose down || exit 0' // Windows-compatible
+                        bat 'docker-compose up --build -d'
+                    }
                 }
-            }
-        }
-
-        stage('Complete') {
-            steps {
-                echo 'Pipeline completed!'
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up after the pipeline.'
-        }
-        success {
-            echo 'Pipeline succeeded!'
-        }
-        failure {
-            echo 'Pipeline failed.'
+            script {
+                // Clean up Docker containers after the job
+                if (isUnix()) {
+                    sh 'docker-compose down || true'
+                } else {
+                    bat 'docker-compose down || exit 0'
+                }
+            }
         }
     }
 }
