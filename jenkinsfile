@@ -1,31 +1,53 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_COMPOSE_FILE = "docker-compose.yml"
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Initialize') {
             steps {
-                // Pull the repository code
-                git branch: 'main', url: 'https://github.com/AshwinK01/Capstone-2'
+                echo 'Starting pipeline...'
             }
         }
 
-        stage('Build and Run Docker Compose') {
+        stage('Run Background Task') {
             steps {
-                // Build and start services
-                sh 'docker-compose down' // Stop running containers (if any)
-                sh 'docker-compose up --build -d'
+                // Run the background script without nohup
+                script {
+                    bat '''
+                        REM Running the task in the background
+                        start /B cmd /c "long_running_task.bat"
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Process') {
+            steps {
+                // Ensure the process is running or completed
+                script {
+                    bat '''
+                        REM Check if the task is running (example: replace with specific check)
+                        tasklist | findstr long_running_task.bat
+                    '''
+                }
+            }
+        }
+
+        stage('Complete') {
+            steps {
+                echo 'Pipeline completed!'
             }
         }
     }
 
     post {
         always {
-            // Clean up Docker containers after the job
-            sh 'docker-compose down'
+            echo 'Cleaning up after the pipeline.'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
