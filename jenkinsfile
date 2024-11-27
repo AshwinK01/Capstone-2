@@ -9,7 +9,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    // Ensure Git is properly configured
+                    // Checkout the code
                     checkout([$class: 'GitSCM', 
                               branches: [[name: '*/main']], 
                               userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
@@ -22,10 +22,8 @@ pipeline {
                 script {
                     // Use 'docker-compose' commands compatible with both Linux and Windows
                     if (isUnix()) {
-                        sh 'docker-compose down || true' // Ensure the command doesn't fail if no containers are running
-                        sh 'docker-compose up --build -d'
+                        sh 'docker-compose up --build -d'  // Build and run in detached mode
                     } else {
-                        bat 'docker-compose down || exit 0' // Windows-compatible
                         bat 'docker-compose up --build -d'
                     }
                 }
@@ -34,15 +32,11 @@ pipeline {
     }
 
     post {
-        always {
-            script {
-                // Clean up Docker containers after the job
-                if (isUnix()) {
-                    sh 'docker-compose down || true'
-                } else {
-                    bat 'docker-compose down || exit 0'
-                }
-            }
+        success {
+            echo 'Containers are up and running'
+        }
+        failure {
+            echo 'Build failed. Check for errors.'
         }
     }
 }
