@@ -45,32 +45,30 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_COMPOSE_FILE = "docker-compose.yml"
-        // Add environment variables for Docker socket permissions
-        DOCKER_SOCKET = '/var/run/docker.sock'
+        NODE_VERSION = '16.14.0'
+        PYTHON_VERSION = '3.8'
     }
     
     stages {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Check and setup Docker permissions
+                    // Setup Node.js environment
                     sh '''
-                        if [ ! -x "$(command -v docker)" ]; then
-                            echo "Docker is not installed. Installing Docker..."
-                            curl -fsSL https://get.docker.com -o get-docker.sh
-                            sudo sh get-docker.sh
+                        # Install nvm if not present
+                        if [ ! -d "$HOME/.nvm" ]; then
+                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
                         fi
                         
-                        # Ensure Jenkins user has Docker permissions
-                        if ! groups jenkins | grep -q docker; then
-                            sudo usermod -aG docker jenkins
-                            echo "Added Jenkins user to Docker group. You may need to restart Jenkins."
-                        fi
+                        # Install and use specified Node.js version
+                        . "$HOME/.nvm/nvm.sh"
+                        nvm install ${NODE_VERSION}
+                        nvm use ${NODE_VERSION}
                         
-                        # Verify Docker installation
-                        docker --version || true
-                        docker-compose --version || true
+                        # Install Python virtual environment tools
+                        python3 -m pip install --user virtualenv
                     '''
                 }
             }
@@ -95,52 +93,76 @@ pipeline {
             }
         }
         
-        stage('Verify Docker Compose') {
+        stage('Build Backend') {
             steps {
-                script {
-                    if (!fileExists(env.DOCKER_COMPOSE_FILE)) {
-                        error "Docker Compose file not found: ${env.DOCKER_COMPOSE_FILE}"
+                dir('Backend') {
+                    script {
+                        try {
+                            sh '''
+                                # Create and activate virtual environment
+                                python3 -m virtualenv venv
+                                . venv/bin/activate
+                                
+                                # Install requirements
+                                pip install -r requirements.txt
+                                
+                                # Start the backend server in the background
+                                nohup python app.py > backend.log 2>&1 &
+                                
+                                # Wait for backend to start
+                                sleep 10
+                                
+                                # Check if backend is running
+                                if ! ps aux | grep "[p]ython app.py"; then
+                                    echo "Backend failed to start"
+                                    cat backend.log
+                                    exit 1
+                                fi
+                            '''
+                        } catch (Exception e) {
+                            echo "Backend build failed: ${e.getMessage()}"
+                            sh 'cat backend.log || true'
+                            error "Backend build stage failed"
+                        }
                     }
-                    
-                    // Validate docker-compose file
-                    sh '''
-                        echo "Validating Docker Compose file..."
-                        docker-compose -f ${DOCKER_COMPOSE_FILE} config
-                    '''
                 }
             }
         }
         
-        stage('Build and Run Docker Compose') {
+        stage('Build Frontend') {
             steps {
-                script {
-                    try {
-                        // Stop any existing containers
-                        sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
-                        
-                        // Remove existing images to ensure fresh build
-                        sh '''
-                            docker-compose -f ${DOCKER_COMPOSE_FILE} down --rmi all || true
-                            docker system prune -f || true
-                        '''
-                        
-                        // Build and start containers with increased verbosity
-                        sh '''
-                            docker-compose -f ${DOCKER_COMPOSE_FILE} build --no-cache
-                            docker-compose -f ${DOCKER_COMPOSE_FILE} up -d --force-recreate
-                        '''
-                        
-                        // Verify containers are running
-                        sh '''
-                            echo "Checking running containers..."
-                            docker ps
-                            echo "Checking container logs..."
-                            docker-compose -f ${DOCKER_COMPOSE_FILE} logs
-                        '''
-                    } catch (Exception e) {
-                        echo "Docker Compose build failed: ${e.getMessage()}"
-                        sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} logs'
-                        error "Build and Run stage failed"
+                dir('frontend_next') {
+                    script {
+                        try {
+                            sh '''
+                                # Source nvm and use correct Node version
+                                . "$HOME/.nvm/nvm.sh"
+                                nvm use ${NODE_VERSION}
+                                
+                                # Install dependencies
+                                npm install
+                                
+                                # Build the application
+                                npm run build
+                                
+                                # Start the frontend server in the background
+                                nohup npm run dev > frontend.log 2>&1 &
+                                
+                                # Wait for frontend to start
+                                sleep 20
+                                
+                                # Check if frontend is running
+                                if ! ps aux | grep "[n]pm run dev"; then
+                                    echo "Frontend failed to start"
+                                    cat frontend.log
+                                    exit 1
+                                fi
+                            '''
+                        } catch (Exception e) {
+                            echo "Frontend build failed: ${e.getMessage()}"
+                            sh 'cat frontend.log || true'
+                            error "Frontend build stage failed"
+                        }
                     }
                 }
             }
@@ -149,19 +171,12 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    // Wait for services to be healthy
                     sh '''
-                        echo "Waiting for services to be ready..."
-                        sleep 30
-                        
-                        # Check if backend is responding
+                        echo "Checking backend health..."
                         curl -f http://localhost:5000 || echo "Backend health check failed"
                         
-                        # Check if frontend is responding
+                        echo "Checking frontend health..."
                         curl -f http://localhost:3000 || echo "Frontend health check failed"
-                        
-                        # Show container status
-                        docker-compose -f ${DOCKER_COMPOSE_FILE} ps
                     '''
                 }
             }
@@ -171,7 +186,6 @@ pipeline {
     post {
         success {
             script {
-                echo 'Deployment completed successfully'
                 emailext(
                     subject: "✅ Jenkins Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     body: """
@@ -191,23 +205,6 @@ pipeline {
         }
         failure {
             script {
-                echo 'Collecting failure diagnostics...'
-                
-                // Collect diagnostic information
-                sh '''
-                    echo "Docker Version:"
-                    docker --version || true
-                    
-                    echo "Docker Compose Version:"
-                    docker-compose --version || true
-                    
-                    echo "Container Status:"
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} ps || true
-                    
-                    echo "Container Logs:"
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} logs || true
-                '''
-                
                 emailext(
                     subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     body: """
@@ -225,14 +222,19 @@ pipeline {
         }
         always {
             script {
-                // Cleanup
+                // Cleanup processes
                 sh '''
-                    echo "Performing cleanup..."
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} down --volumes --remove-orphans || true
-                    docker system prune -f || true
+                    echo "Cleaning up processes..."
+                    pkill -f "python app.py" || true
+                    pkill -f "npm run dev" || true
+                    
+                    # Clean up virtual environment
+                    rm -rf Backend/venv || true
+                    
+                    # Clean up node_modules
+                    rm -rf frontend_next/node_modules || true
                 '''
             }
         }
     }
 }
-
