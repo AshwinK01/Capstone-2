@@ -1,18 +1,18 @@
-# Use an official Python runtime as a parent image
+# Backend Dockerfile (backend/Dockerfile)
 FROM python:3.9-slim
 
-# Set the working directory inside the container to /app
+# Set the working directory
 WORKDIR /app
 
-# Copy the backend code and the requirements.txt file into the container
-COPY Backend/requirements.txt /app/requirements.txt
-COPY Backend/ /app/
+# Copy the backend code
+COPY . /app
 
-# Install dependencies from the requirements.txt
+# Install dependencies add that requirement file to this docker file which is in backend 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port the app will run on (default Flask port is 5000)
+# Expose the backend port (default Flask port is 5000)
 EXPOSE 5000
 
-# Run the backend application
+# Run the backend
 CMD ["python", "app.py"]
+
