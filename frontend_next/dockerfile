@@ -1,21 +1,7 @@
-# Frontend Dockerfile (frontend_next/Dockerfile)
-FROM node:18
-
-# Set the working directory
+FROM node:16
 WORKDIR /app
-
-# Copy the frontend_next code
-COPY . /app
-
-# Install dependencies
+COPY package*.json ./
 RUN npm install
-
-# Build the React application (production build)
-RUN npm run build
-
-# Expose the frontend port (default React port is 3000)
+COPY . .
 EXPOSE 3000
-
-# Serve the production build using a simple server
-RUN npm install -g serve
-CMD ["serve", "-s", "build"]
+CMD ["npm", "run", "dev"]
