@@ -40,6 +40,7 @@
 //         }
 //     }
 // }
+
 pipeline {
     agent any
 
@@ -67,69 +68,6 @@ pipeline {
                         sh 'docker-compose up --build -d'  // Build and run in detached mode
                     } else {
                         bat 'docker-compose up --build -d'
-                    }
-                }
-            }
-        }
-
-        stage('Setup Backend') {
-            steps {
-                dir('Backend') {
-                    script {
-                        sh '''
-                            python3 -m pip install --user virtualenv
-                            python3 -m virtualenv venv
-                            . venv/bin/activate
-                            pip install -r requirements.txt
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Run Backend') {
-            steps {
-                dir('Backend') {
-                    script {
-                        sh '''
-                            . venv/bin/activate
-                            nohup python app.py > backend.log 2>&1 &
-                            sleep 10
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Setup Frontend') {
-            steps {
-                dir('frontend_next') {
-                    script {
-                        sh '''
-                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-                            export NVM_DIR="$HOME/.nvm"
-                            . "$HOME/.nvm/nvm.sh"
-                            nvm install 16
-                            nvm use 16
-                            npm install
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Run Frontend') {
-            steps {
-                dir('frontend_next') {
-                    script {
-                        sh '''
-                            export NVM_DIR="$HOME/.nvm"
-                            . "$HOME/.nvm/nvm.sh"
-                            nvm use 16
-                            npm run build
-                            nohup npm run dev > frontend.log 2>&1 &
-                            sleep 20
-                        '''
                     }
                 }
             }
