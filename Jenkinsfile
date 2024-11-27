@@ -40,25 +40,38 @@
 //         }
 //     }
 // }
-
 pipeline {
     agent any
-    
+
+    environment {
+        DOCKER_COMPOSE_FILE = "docker-compose.yml"
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 script {
-                    checkout([
-                        $class: 'GitSCM', 
-                        branches: [[name: '*/main']], 
-                        userRemoteConfigs: [[
-                            url: 'https://github.com/AshwinK01/Capstone-2'
-                        ]]
-                    ])
+                    // Checkout the code
+                    checkout([$class: 'GitSCM', 
+                              branches: [[name: '*/main']], 
+                              userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
                 }
             }
         }
-        
+
+        stage('Build and Run Docker Compose') {
+            steps {
+                script {
+                    // Use 'docker-compose' commands compatible with both Linux and Windows
+                    if (isUnix()) {
+                        sh 'docker-compose up --build -d'  // Build and run in detached mode
+                    } else {
+                        bat 'docker-compose up --build -d'
+                    }
+                }
+            }
+        }
+
         stage('Setup Backend') {
             steps {
                 dir('Backend') {
@@ -73,7 +86,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run Backend') {
             steps {
                 dir('Backend') {
@@ -87,7 +100,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Setup Frontend') {
             steps {
                 dir('frontend_next') {
@@ -104,7 +117,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run Frontend') {
             steps {
                 dir('frontend_next') {
@@ -122,7 +135,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         success {
             emailext(
@@ -148,3 +161,4 @@ pipeline {
         }
     }
 }
+
