@@ -20,7 +20,6 @@
 #     restart: always
 
 
-version: '3'
 services:
   backend:
     build: ./Backend
