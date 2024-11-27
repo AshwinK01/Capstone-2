@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -13,8 +11,9 @@ import joblib
 import yara
 import time
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable Cross-Origin Resource Sharing (CORS)
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +25,7 @@ ALLOWED_EXTENSIONS = {'exe', 'dll', 'pdf'}
 
 class MalwareAnalyzer:
     def __init__(self):
+        # Define malware types
         self.malware_types = {
             0: 'Trojan',
             1: 'Ransomware',
@@ -35,37 +35,36 @@ class MalwareAnalyzer:
             5: 'Adware',
             6: 'Rootkit'
         }
-        # Load pre-trained model (you'll need to train this separately)
+        # Load pre-trained model (ensure 'malware_classifier.joblib' exists)
         try:
             self.model = joblib.load('malware_classifier.joblib')
         except:
-            self.model = RandomForestClassifier()
-        
-        # Load YARA rules
+            self.model = RandomForestClassifier()  # Placeholder in case the model is missing
+
+        # Load YARA rules for behavior analysis
         try:
             self.rules = yara.compile(filepath='malware_rules.yar')
         except:
-            self.rules = None
+            self.rules = None  # Fallback if YARA rules are missing
 
     def extract_features(self, vt_results, file_content):
-        features = []
-        
-        # Basic statistics
-        features.extend([
+        """
+        Extracts features from VirusTotal results and file content for classification.
+        """
+        features = [
             vt_results.get('malicious', 0),
             vt_results.get('suspicious', 0),
             vt_results.get('harmless', 0),
-            vt_results.get('undetected', 0)
-        ])
-        
-        # File characteristics
-        features.append(len(file_content))
-        
-        # Additional features can be added here
-        
+            vt_results.get('undetected', 0),
+            len(file_content)  # File size in bytes
+        ]
+        # Return features reshaped as required by the classifier
         return np.array(features).reshape(1, -1)
 
     def analyze_behaviors(self, file_content):
+        """
+        Analyzes file content using YARA rules and returns detected behaviors.
+        """
         behaviors = []
         if self.rules:
             matches = self.rules.match(data=file_content)
@@ -78,6 +77,9 @@ class MalwareAnalyzer:
         return behaviors
 
     def classify(self, features, confidence_threshold=0.6):
+        """
+        Classifies file based on extracted features using the pre-trained model.
+        """
         try:
             prediction = self.model.predict(features)[0]
             probabilities = self.model.predict_proba(features)[0]
@@ -89,77 +91,84 @@ class MalwareAnalyzer:
                     'confidence': float(confidence)
                 }
             return {'type': 'Unknown', 'confidence': float(confidence)}
-        except:
+        except Exception:
             return {'type': 'Unknown', 'confidence': 0.0}
 
 def allowed_file(filename):
+    """
+    Checks if the uploaded file type is allowed.
+    """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api/classify', methods=['POST'])
 def classify():
+    """
+    API endpoint to classify an uploaded file as malware or benign.
+    """
     try:
+        # Check if a file is included in the request
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
-        
+
         file = request.files['file']
-        
+
+        # Validate file name and type
         if not file.filename:
             return jsonify({"error": "No file selected"}), 400
-        
         if not allowed_file(file.filename):
             return jsonify({"error": "Invalid file type. Allowed types: EXE, DLL, PDF"}), 400
-        
+
         file_content = file.read()
+
+        # Check file size
         if len(file_content) > MAX_FILE_SIZE:
             return jsonify({"error": "File size exceeds 32MB limit"}), 400
-        
-        # Calculate file hash
+
+        # Calculate file hash for identification
         sha256_hash = hashlib.sha256(file_content).hexdigest()
-        
+
+        # Save the file temporarily for VirusTotal scan
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(file_content)
             temp_path = temp_file.name
-        
+
         try:
+            # Initialize VirusTotal client and MalwareAnalyzer
             client = vt.Client(VIRUSTOTAL_API_KEY)
             analyzer = MalwareAnalyzer()
-            
-            try:
-                with open(temp_path, 'rb') as f:
-                    analysis = client.scan_file(f)
-                
-                while True:
-                    analysis = client.get_object("/analyses/{}", analysis.id)
-                    if analysis.status == "completed":
-                        break
-                    time.sleep(2)
-                
-                stats = analysis.stats
-                
-                # Extract features and classify
-                features = analyzer.extract_features(stats, file_content)
-                classification = analyzer.classify(features)
-                behaviors = analyzer.analyze_behaviors(file_content)
-                
-                return jsonify({
-                    "malicious": stats.get("malicious", 0),
-                    "suspicious": stats.get("suspicious", 0),
-                    "harmless": stats.get("harmless", 0),
-                    "undetected": stats.get("undetected", 0),
-                    "classification": classification,
-                    "behaviors": behaviors,
-                    "sha256": sha256_hash
-                })
-            
-            finally:
-                client.close()
-        
+
+            # Upload the file to VirusTotal for scanning
+            with open(temp_path, 'rb') as f:
+                analysis = client.scan_file(f)
+
+            # Poll the analysis status until it's complete
+            while True:
+                analysis = client.get_object(f"/analyses/{analysis.id}")
+                if analysis.status == "completed":
+                    break
+                time.sleep(2)
+
+            stats = analysis.stats
+
+            # Extract features and classify the file
+            features = analyzer.extract_features(stats, file_content)
+            classification = analyzer.classify(features)
+            behaviors = analyzer.analyze_behaviors(file_content)
+
+            return jsonify({
+                "malicious": stats.get("malicious", 0),
+                "suspicious": stats.get("suspicious", 0),
+                "harmless": stats.get("harmless", 0),
+                "undetected": stats.get("undetected", 0),
+                "classification": classification,
+                "behaviors": behaviors,
+                "sha256": sha256_hash
+            })
+
         finally:
-            try:
-                os.unlink(temp_path)
-            except:
-                pass
-    
+            client.close()
+            os.unlink(temp_path)  # Clean up the temporary file
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
