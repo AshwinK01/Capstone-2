@@ -46,28 +46,18 @@ pipeline {
     
     environment {
         DOCKER_COMPOSE_FILE = "docker-compose.yml"
-        // Add Docker credentials if needed
-        DOCKER_REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
-    }
-    
-    tools {
-        // Ensure specific tools are available
-        dockerTool 'docker'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                // More robust checkout with error handling
                 script {
                     try {
                         checkout([
                             $class: 'GitSCM', 
                             branches: [[name: '*/main']], 
                             userRemoteConfigs: [[
-                                url: 'https://github.com/AshwinK01/Capstone-2',
-                                // Uncomment and add credentials if the repo is private
-                                // credentialsId: 'your-github-credentials'
+                                url: 'https://github.com/AshwinK01/Capstone-2'
                             ]]
                         ])
                     } catch (Exception e) {
@@ -95,28 +85,25 @@ pipeline {
         stage('Build and Run Docker Compose') {
             steps {
                 script {
-                    // More comprehensive Docker Compose handling
                     try {
-                        // Login to Docker registry if needed
-                        // sh 'echo $DOCKER_REGISTRY_CREDENTIALS_PSW | docker login -u $DOCKER_REGISTRY_CREDENTIALS_USR --password-stdin'
-                        
                         // Verbose Docker Compose commands with error checking
-                        if (isUnix()) {
-                            sh '''
-                                docker-compose -f ${DOCKER_COMPOSE_FILE} config
-                                docker-compose -f ${DOCKER_COMPOSE_FILE} pull
-                                docker-compose -f ${DOCKER_COMPOSE_FILE} up --build -d
-                            '''
-                        } else {
-                            bat '''
-                                docker-compose -f %DOCKER_COMPOSE_FILE% config
-                                docker-compose -f %DOCKER_COMPOSE_FILE% pull
-                                docker-compose -f %DOCKER_COMPOSE_FILE% up --build -d
-                            '''
-                        }
-                        
-                        // Verify containers are running
-                        sh 'docker ps'
+                        sh '''
+                            # Verify Docker and Docker Compose installation
+                            docker --version
+                            docker-compose --version
+                            
+                            # Validate Docker Compose configuration
+                            docker-compose -f ${DOCKER_COMPOSE_FILE} config
+                            
+                            # Pull latest images
+                            docker-compose -f ${DOCKER_COMPOSE_FILE} pull
+                            
+                            # Build and start containers
+                            docker-compose -f ${DOCKER_COMPOSE_FILE} up --build -d
+                            
+                            # List running containers
+                            docker ps
+                        '''
                     } catch (Exception e) {
                         echo "Docker Compose build failed: ${e.getMessage()}"
                         
@@ -132,13 +119,9 @@ pipeline {
         stage('Post-Deployment Verification') {
             steps {
                 script {
-                    // Add custom health checks or verification steps
                     sh '''
-                        # Example: Check if specific containers are running
+                        # Check container status
                         docker-compose -f ${DOCKER_COMPOSE_FILE} ps
-                        
-                        # Example: Curl a health endpoint if applicable
-                        # curl http://localhost:8080/health
                     '''
                 }
             }
@@ -159,34 +142,23 @@ pipeline {
             }
         }
         always {
-            // Clean up resources
             script {
-                sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
-                
-                // Optional: Prune unused Docker resources
                 sh '''
+                    # Attempt to stop and remove containers
+                    docker-compose -f ${DOCKER_COMPOSE_FILE} down || true
+                    
+                    # Optional cleanup
                     docker system prune -f
-                    docker volume prune -f
                 '''
             }
         }
     }
 }
 
-// Email notification methods
 def sendConfirmationEmail() {
     emailext(
         subject: "Jenkins Build Success: ${env.JOB_NAME} ${env.BUILD_NUMBER}",
-        body: """
-        Build Successful!
-        
-        Job: ${env.JOB_NAME}
-        Build Number: ${env.BUILD_NUMBER}
-        Build URL: ${env.BUILD_URL}
-        
-        The Jenkins pipeline has successfully completed. 
-        All containers are up and running.
-        """,
+        body: "The Jenkins pipeline has successfully completed. The containers are up and running.",
         to: 'sanjay.kohli21@st.niituniversity.in'
     )
 }
@@ -194,21 +166,8 @@ def sendConfirmationEmail() {
 def sendErrorEmail() {
     emailext(
         subject: "Jenkins Build Failed: ${env.JOB_NAME} ${env.BUILD_NUMBER}",
-        body: """
-        Build Failed!
-        
-        Job: ${env.JOB_NAME}
-        Build Number: ${env.BUILD_NUMBER}
-        Build URL: ${env.BUILD_URL}
-        
-        There was an error in the Jenkins pipeline. 
-        Please check the build logs for detailed error information.
-        
-        Recommended actions:
-        1. Check Docker Compose configuration
-        2. Verify network and port availability
-        3. Check container image compatibility
-        """,
+        body: "There was an error in the Jenkins pipeline. Please check the build logs for details.",
         to: 'sanjay.kohli21@st.niituniversity.in'
     )
 }
+
