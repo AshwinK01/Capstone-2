@@ -1,44 +1,51 @@
- pipeline {
-     agent any
+pipeline {
+    agent any
 
-     environment {
-         DOCKER_COMPOSE_FILE = "docker-compose.yml"
-     }
+    environment {
+        DOCKER_COMPOSE_FILE = "docker-compose.yml"
+        RECIPIENTS = 'ashwinx10@gmail.com'  // Add your email recipients here
+    }
 
-     stages {
-         stage('Checkout') {
-             steps {
-                 script {
-                     // Checkout the code
-                     checkout([$class: 'GitSCM', 
-                               branches: [[name: '*/main']], 
-                               userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
-                 }
-             }
-         }
-         stage('Build and Run Docker Compose') {
-             steps {
-                 script {
-                     // Use 'docker-compose' commands compatible with both Linux and Windows
-                     if (isUnix()) {
-                         sh 'docker-compose up --build -d'  // Build and run in detached mode
-                     } else {
-                         bat 'docker-compose up --build -d'
-                     }
-                 }
-             }
-         }
-     }
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    // Checkout the code
+                    checkout([$class: 'GitSCM', 
+                              branches: [[name: '*/main']], 
+                              userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
+                }
+            }
+        }
+        stage('Build and Run Docker Compose') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh 'docker-compose up --build -d'  // Build and run in detached mode
+                    } else {
+                        bat 'docker-compose up --build -d'
+                    }
+                }
+            }
+        }
+    }
 
-     post {
-         success {
-             echo 'Containers are up and running'
-         }
-         failure {
-             echo 'Build failed. Check for errors.'
-         }
-     }
- }
+    post {
+        success {
+            echo 'Containers are up and running'
+            emailext subject: "Jenkins Build SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                     body: "Good news! The build for ${env.JOB_NAME} #${env.BUILD_NUMBER} was successful.\nCheck it here: ${env.BUILD_URL}",
+                     to: "${RECIPIENTS}"
+        }
+        failure {
+            echo 'Build failed. Check for errors.'
+            emailext subject: "Jenkins Build FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                     body: "Oops! The build for ${env.JOB_NAME} #${env.BUILD_NUMBER} failed.\nCheck the details here: ${env.BUILD_URL}",
+                     to: "${RECIPIENTS}"
+        }
+    }
+}
+
 
 //pipeline {
 //    agent any
