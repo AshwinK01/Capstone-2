@@ -12,7 +12,7 @@ const ALLOWED_FILE_TYPES = [
   'application/vnd.microsoft.portable-executable'
 ];
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = 'http://localhost:5001';
 
 export default function Scanner() {
   const [file, setFile] = useState(null);
