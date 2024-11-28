@@ -20,7 +20,7 @@
 #     restart: always
 
 
-'''services:
+services:
   backend:
     build: ./Backend
     ports:
@@ -29,30 +29,3 @@
     build: ./frontend_next
     ports:
       - "3000:3000"
-'''
-version: '3.8'
-
-services:
-  backend:
-    build: ./Backend  # Make sure the path to your backend is correct
-    ports:
-      - "5000:5000"   # Exposing port 5000 to the host
-    expose:
-      - "5000"        # Expose port 5000 within the Docker network for inter-container communication
-    networks:
-      - app-network   # Connect to a custom network
-    environment:
-      - NODE_ENV=production  # Example environment variable
-
-  frontend:
-    build: ./frontend_next  # Make sure the path to your frontend is correct
-    ports:
-      - "3000:3000"   # Exposing port 3000 to the host
-    networks:
-      - app-network   # Connect to the same custom network
-    environment:
-      - NEXT_PUBLIC_BACKEND_URL=http://backend:5000  # Environment variable pointing to the backend service
-
-networks:
-  app-network:
-    driver: bridge
