@@ -7,3 +7,4 @@ joblib
 yara-python
 requests
 numpy
+vt-py
