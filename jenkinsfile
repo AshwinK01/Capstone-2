@@ -1,94 +1,94 @@
-// pipeline {
-//     agent any
+ pipeline {
+     agent any
 
-//     environment {
-//         DOCKER_COMPOSE_FILE = "docker-compose.yml"
-//     }
+     environment {
+         DOCKER_COMPOSE_FILE = "docker-compose.yml"
+     }
 
-//     stages {
-//         stage('Checkout') {
-//             steps {
-//                 script {
-//                     checkout([$class: 'GitSCM',
-//                               branches: [[name: '*/main']],
-//                               userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
-//                 }
-//             }
-//         }
-//         stage('Build and Run Docker Compose') {
-//             steps {
-//                 script {
-//                     if (isUnix()) {
-//                         sh 'docker-compose up --build -d'
-//                     } else {
-//                         bat 'docker-compose up --build -d'
-//                     }
-//                 }
-//             }
-//         }
-//     }
+     stages {
+         stage('Checkout') {
+             steps {
+                 script {
+                     checkout([$class: 'GitSCM',
+                               branches: [[name: '*/main']],
+                               userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
+                 }
+             }
+         }
+         stage('Build and Run Docker Compose') {
+             steps {
+                 script {
+                     if (isUnix()) {
+                         sh 'docker-compose up --build -d'
+                     } else {
+                         bat 'docker-compose up --build -d'
+                     }
+                 }
+             }
+         }
+     }
 
-//     post {
-//         success {
-//             echo 'Containers are up and running'
-//             emailext subject: 'Build Successful: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
-//                      body: """
-//                            <p>Good news!</p>
-//                            <p>The build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> was successful.</p>
-//                            <p>Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-//                            """,
-//                      to: 'ashwinx10@gmail.com'
-//         }
-//         failure {
-//             echo 'Build failed. Check for errors.'
-//             emailext subject: 'Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
-//                      body: """
-//                            <p>Unfortunately, the build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> failed.</p>
-//                            <p>Check the build logs for more details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-//                            """,
-//                      to: 'ashwinx10@gmail.com'
-//         }
-//     }
-// }
-
-
+     post {
+         success {
+             echo 'Containers are up and running'
+             emailext subject: 'Build Successful: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
+                      body: """
+                            <p>Good news!</p>
+                            <p>The build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> was successful.</p>
+                            <p>Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                            """,
+                      to: 'ashwinx10@gmail.com'
+         }
+         failure {
+             echo 'Build failed. Check for errors.'
+             emailext subject: 'Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
+                      body: """
+                            <p>Unfortunately, the build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> failed.</p>
+                            <p>Check the build logs for more details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                            """,
+                      to: 'ashwinx10@gmail.com'
+         }
+     }
+ }
 
 
 
-pipeline {
-    agent any
 
-    stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    checkout([$class: 'GitSCM',
-                              branches: [[name: '*/main']],
-                              userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
-                }
-            }
-        }
-    }
 
-    post {
-        success {
-            echo 'Build completed successfully.'
-            emailext subject: 'Build Successful: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
-                     body: """
-                           <p>Good news!</p>
-                           <p>The build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> was successful.</p>
-                           <p>Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                           """,
-                     to: 'ashwinx10@gmail.com'
-        }
-        failure {
-            echo 'Build failed. Check for errors.'
-            emailext subject: 'Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
-                     body: """
-                           <p>Unfortunately, the build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> failed.</p>
-                           <p>Check the build logs for more details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                           """,
-                     to: 'ashwinx10@gmail.com'
-        }
-    }
-}
+//pipeline {
+//    agent any
+//
+//    stages {
+//        stage('Checkout') {
+//            steps {
+//                script {
+//                    checkout([$class: 'GitSCM',
+//                              branches: [[name: '*/main']],
+ //                             userRemoteConfigs: [[url: 'https://github.com/AshwinK01/Capstone-2']]])
+//                }
+//            }
+//        }
+//    }
+//
+//    post {
+//        success {
+//            echo 'Build completed successfully.'
+//            emailext subject: 'Build Successful: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
+//                     body: """
+//                           <p>Good news!</p>
+//                           <p>The build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> was successful.</p>
+//                           <p>Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+//                           """,
+//                     to: 'ashwinx10@gmail.com'
+ //       }
+ //       failure {
+ //           echo 'Build failed. Check for errors.'
+ //           emailext subject: 'Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}',
+ //                    body: """
+//                           <p>Unfortunately, the build for <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> failed.</p>
+//                           <p>Check the build logs for more details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+//                         """,
+ //                    to: 'ashwinx10@gmail.com'
+ //       }
+//    }
+//}
