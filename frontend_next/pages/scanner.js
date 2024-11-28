@@ -229,7 +229,7 @@ export default function Scanner() {
         <title>
           {scanResults
             ? `${getThreatLevel(scanResults)} - Malware Analysis Results`
-            : 'Malware Scanner'}
+            : 'Malware Scan'}
         </title>
         <meta name="description" content="Secure file and URL scanner for malware detection" />
       </Head>
