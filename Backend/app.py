@@ -25,7 +25,6 @@ VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
 MAX_FILE_SIZE = 32 * 1024 * 1024  # 32MB
 ALLOWED_EXTENSIONS = {'exe', 'dll', 'pdf'}
 
-
 class MalwareAnalyzer:
     def __init__(self):
         # Define malware types
@@ -42,13 +41,15 @@ class MalwareAnalyzer:
         # Load pre-trained model (ensure 'malware_classifier.joblib' exists)
         try:
             self.model = joblib.load('malware_classifier.joblib')
-        except:
+        except Exception as e:
+            print(f"Error loading model: {e}")
             self.model = RandomForestClassifier()  # Placeholder in case the model is missing
 
         # Load YARA rules for behavior analysis
         try:
             self.rules = yara.compile(filepath='malware_rules.yar')
-        except:
+        except Exception as e:
+            print(f"Error loading YARA rules: {e}")
             self.rules = None  # Fallback if YARA rules are missing
 
     def extract_features(self, vt_results, file_content):
@@ -70,13 +71,16 @@ class MalwareAnalyzer:
         """
         behaviors = []
         if self.rules:
-            matches = self.rules.match(data=file_content)
-            for match in matches:
-                behaviors.append({
-                    'type': match.rule,
-                    'description': match.meta.get('description', ''),
-                    'severity': match.meta.get('severity', 'unknown')
-                })
+            try:
+                matches = self.rules.match(data=file_content)
+                for match in matches:
+                    behaviors.append({
+                        'type': match.rule,
+                        'description': match.meta.get('description', ''),
+                        'severity': match.meta.get('severity', 'unknown')
+                    })
+            except Exception as e:
+                print(f"Error analyzing behaviors: {e}")
         return behaviors
 
     def classify(self, features, confidence_threshold=0.6):
@@ -90,11 +94,12 @@ class MalwareAnalyzer:
 
             if confidence >= confidence_threshold:
                 return {
-                    'type': self.malware_types[prediction],
+                    'type': self.malware_types.get(prediction, 'Unknown'),
                     'confidence': float(confidence)
                 }
             return {'type': 'Unknown', 'confidence': float(confidence)}
-        except Exception:
+        except Exception as e:
+            print(f"Error in classification: {e}")
             return {'type': 'Unknown', 'confidence': 0.0}
 
     def analyze_url(self, url):
@@ -143,6 +148,7 @@ class MalwareAnalyzer:
             }
 
         except Exception as e:
+            print(f"Error analyzing URL: {e}")
             raise ValueError(f"URL analysis failed: {str(e)}")
 
 
@@ -230,7 +236,8 @@ def validate_url(url):
     try:
         parsed_url = urlparse(url)
         return all([parsed_url.scheme, parsed_url.netloc])
-    except Exception:
+    except Exception as e:
+        print(f"Error validating URL: {e}")
         return False
 
 
@@ -256,18 +263,19 @@ def classify_url():
             response = requests.head(url, timeout=5)
             if response.status_code >= 400:
                 return jsonify({"error": "Invalid or unreachable URL"}), 400
-        except requests.RequestException:
-            return jsonify({"error": "Unable to connect to URL"}), 400
+        except requests.RequestException as e:
+            print(f"Error connecting to URL: {e}")
+            return jsonify({"error": "Unable to connect to URL"}), 500
 
-        # Initialize MalwareAnalyzer and analyze URL
+        # Analyze URL
         analyzer = MalwareAnalyzer()
-        results = analyzer.analyze_url(url)
+        result = analyzer.analyze_url(url)
 
-        return jsonify(results)
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')  # Bind to all network interfaces
+    app.run(debug=True, host='0.0.0.0', port=5000)
