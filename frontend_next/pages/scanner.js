@@ -12,7 +12,7 @@ const ALLOWED_FILE_TYPES = [
   'application/vnd.microsoft.portable-executable'
 ];
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = 'http://localhost:5000';
 
 export default function Scanner() {
   const [file, setFile] = useState(null);
@@ -51,8 +51,7 @@ export default function Scanner() {
     const timestamp = new Date().toISOString();
     const threatLevel = getThreatLevel(scanResults);
 
-    const report = `
-  MALWARE SCAN REPORT
+    const report = `MALWARE SCAN REPORT
   Generated: ${new Date().toLocaleString()}
   ----------------------------------------
   
@@ -76,11 +75,7 @@ export default function Scanner() {
   
   BEHAVIORAL ANALYSIS
   ----------------------------------------
-  ${scanResults.behaviors?.map(behavior => `
-  Type: ${behavior.type}
-  Severity: ${behavior.severity}
-  Description: ${behavior.description}
-  `).join('\n') || 'No behavioral analysis data available'}
+  ${scanResults.behaviors?.map(behavior => `Type: ${behavior.type} Severity: ${behavior.severity} Description: ${behavior.description}`).join('\n') || 'No behavioral analysis data available'}
   
   ----------------------------------------
   Report End
@@ -140,6 +135,7 @@ export default function Scanner() {
     setError('');
     setScanResults(null);
   };
+
   const handleScan = async () => {
     if (!file && !url) {
       setError('Please select a file or enter a URL');
@@ -187,7 +183,7 @@ export default function Scanner() {
             setError('URL endpoint not found. Please check server configuration.');
             break;
           case 500:
-            setError('Server error occurred during scanning. Possible a malicious url.');
+            setError('Server error occurred during scanning. Possible malicious url.');
             break;
           default:
             setError(errorMessage);
@@ -263,12 +259,7 @@ export default function Scanner() {
               <div className="space-y-4">
                 {/* File Upload */}
                 <label className="block">
-                  <div className={`
-                    bg-slate-800/30 border-2 border-dashed border-slate-700 
-                    rounded-lg p-8 text-center transition-colors cursor-pointer
-                    ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500/50'}
-                    ${url ? 'opacity-50' : ''}
-                  `}>
+                  <div className={`bg-slate-800/30 border-2 border-dashed border-slate-700 rounded-lg p-8 text-center transition-colors cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500/50'} ${url ? 'opacity-50' : ''}`}>
                     <input
                       type="file"
                       className="hidden"
@@ -280,197 +271,143 @@ export default function Scanner() {
                       <div>
                         {file ? (
                           <span className="break-all">
-                            {file.name} ({Math.round(file.size / 1024)}KB)
+                            {file.name} ({Math.round(file.size / 1024)} KB)
                           </span>
                         ) : (
-                          'Choose File'
+                          <span>Select a file to scan</span>
                         )}
                       </div>
                     </div>
                   </div>
                 </label>
 
-                {/* URL Input */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Link className="text-slate-400" size={20} />
-                  </div>
+                {/* URL Scan */}
+                <div className="flex flex-col items-center">
+                  <label htmlFor="url" className="block text-slate-400">
+                    Or enter a URL:
+                  </label>
                   <input
+                    id="url"
                     type="url"
-                    placeholder="Or enter a URL to scan"
+                    placeholder="https://example.com"
                     value={url}
                     onChange={handleUrlChange}
+                    className="mt-2 p-3 bg-slate-800 text-white rounded-lg border border-slate-700"
                     disabled={loading || !!file}
-                    className={`
-                      w-full pl-10 pr-4 py-3 bg-slate-800/30 border border-slate-700 
-                      rounded-lg focus:outline-none focus:border-blue-500
-                      ${loading || file ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
                   />
                 </div>
               </div>
 
-              {error && (
-                <div className="text-red-500 text-center">
-                  {error}
-                </div>
-              )}
-
-              {progress && (
-                <div className="text-center text-slate-400">
-                  {progress}
-                </div>
-              )}
-
-              <button
-                onClick={handleScan}
-                disabled={(!file && !url) || loading}
-                className="w-full bg-blue-600 rounded-lg p-4 font-semibold 
-                         hover:bg-blue-500 transition-colors disabled:opacity-50 
-                         disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {loading ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    Scanning...
-                  </>
-                ) : (
-                  'Start Scan'
-                )}
-              </button>
+              {/* Scan button */}
+              <div className="text-center">
+                <button
+                  onClick={handleScan}
+                  className={`mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg ${loading ? 'cursor-not-allowed opacity-50' : ''}`}
+                  disabled={loading}
+                >
+                  {loading ? <Activity size={20} className="animate-spin" /> : 'Start Scan'}
+                </button>
+              </div>
             </div>
           ) : (
-
-            // Results Section (replaces the commented section in the previous code)
-            <div className="space-y-6 animate-fadeIn">
-              {/* File/URL Information */}
-              <div className="p-6 rounded-lg bg-slate-800/30 backdrop-blur-md border border-slate-700">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold mb-2">Scan Details</h2>
-                    <div className="text-slate-400">
-                      {file ? (
-                        <>
-                          <p>Filename: {file.name}</p>
-                          <p className="text-xs">SHA-256: {scanResults.sha256}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p>URL: {url}</p>
-                          <p className="text-xs">SHA-256: {scanResults.sha256}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className={`
-        px-4 py-2 rounded-full flex items-center space-x-2
-        ${getThreatLevel(scanResults) === 'Critical' ? 'bg-red-500/20 text-red-500' :
-                      getThreatLevel(scanResults) === 'Warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                        'bg-green-500/20 text-green-500'}
-      `}>
-                    {getThreatLevel(scanResults) === 'Critical' ? <AlertTriangle size={20} /> :
-                      getThreatLevel(scanResults) === 'Warning' ? <FileWarning size={20} /> :
-                        <ShieldCheck size={20} />}
-                    <span>{getThreatLevel(scanResults)}</span>
-                  </div>
-                </div>
+            <div className="space-y-6">
+              <div className="text-center space-y-4">
+                <h2 className="text-3xl font-semibold">
+                  Scan Result: {getThreatLevel(scanResults)}
+                </h2>
+                <p className="text-xl">
+                  {scanResults.malicious > 0 ? (
+                    <span className="text-red-500">Malicious</span>
+                  ) : scanResults.suspicious > 0 ? (
+                    <span className="text-orange-500">Suspicious</span>
+                  ) : (
+                    <span className="text-green-500">Clean</span>
+                  )}
+                </p>
+                <p className="text-slate-400">
+                  Scan completed at {new Date(scanResults.timestamp).toLocaleString()}
+                </p>
               </div>
 
-              {/* Analysis Results */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Scan Statistics */}
-                <div className="p-6 rounded-lg bg-slate-800/30 backdrop-blur-md border border-slate-700">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Activity className="text-blue-500" />
-                    <h2 className="text-xl font-semibold">Scan Statistics</h2>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                      <div className="text-sm text-slate-400">Malicious</div>
-                      <div className="text-2xl font-bold text-red-500">
-                        {scanResults.malicious}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <div className="text-sm text-slate-400">Suspicious</div>
-                      <div className="text-2xl font-bold text-yellow-500">
-                        {scanResults.suspicious}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <div className="text-sm text-slate-400">Harmless</div>
-                      <div className="text-2xl font-bold text-green-500">
-                        {scanResults.harmless}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-slate-500/10 border border-slate-500/20">
-                      <div className="text-sm text-slate-400">Undetected</div>
-                      <div className="text-2xl font-bold text-slate-400">
-                        {scanResults.undetected}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Classification Results */}
-                {scanResults.classification && (
-                  <div className="p-6 rounded-lg bg-slate-800/30 backdrop-blur-md border border-slate-700">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Terminal className="text-blue-500" />
-                      <h2 className="text-xl font-semibold">Classification</h2>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-lg bg-slate-800/50">
-                        <div className="text-sm text-slate-400">Detected Type</div>
-                        <div className="text-xl font-semibold">
-                          {scanResults.classification.type}
-                        </div>
-                      </div>
-                      <div className="p-4 rounded-lg bg-slate-800/50">
-                        <div className="text-sm text-slate-400">Confidence Score</div>
-                        <div className={`text-xl font-semibold ${getConfidenceColor(scanResults.classification.confidence)}`}>
-                          {(scanResults.classification.confidence * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Behavioral Analysis */}
-              {scanResults.behaviors && scanResults.behaviors.length > 0 && (
-                <div className="p-6 rounded-lg bg-slate-800/30 backdrop-blur-md border border-slate-700">
-                  <h2 className="text-xl font-semibold mb-4">Behavioral Analysis</h2>
-                  <div className="space-y-4">
-                    {scanResults.behaviors.map((behavior, index) => (
-                      <div key={index} className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold">{behavior.type}</span>
-                          <span className={`px-3 py-1 rounded-full text-sm ${renderBehaviorSeverity(behavior.severity)}`}>
+              {/* Scan Details */}
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Behavioral Analysis</h3>
+                  <div className="space-y-2">
+                    {scanResults.behaviors?.map((behavior, index) => (
+                      <div key={index} className="flex justify-between">
+                        <div>
+                          <span className="font-medium">{behavior.type}</span>:{' '}
+                          <span
+                            className={renderBehaviorSeverity(behavior.severity)}
+                          >
                             {behavior.severity}
                           </span>
                         </div>
-                        <p className="text-slate-400 text-sm">{behavior.description}</p>
+                        <div>{behavior.description}</div>
                       </div>
                     ))}
+
+                    {scanResults.behaviors?.length === 0 && (
+                      <div>No behavioral analysis data available</div>
+                    )}
                   </div>
                 </div>
-              )}
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Threat Classification */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Threat Classification</h3>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Classification Type</span>
+                      <span>{scanResults.classification?.type || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Confidence</span>
+                      <span className={getConfidenceColor(scanResults.classification?.confidence)}>
+                        {scanResults.classification ? (scanResults.classification.confidence * 100).toFixed(1) + '%' : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scan Stats */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Scan Statistics</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="font-medium">Malicious</span>:{' '}
+                      {scanResults.malicious}
+                    </div>
+                    <div>
+                      <span className="font-medium">Suspicious</span>:{' '}
+                      {scanResults.suspicious}
+                    </div>
+                    <div>
+                      <span className="font-medium">Harmless</span>:{' '}
+                      {scanResults.harmless}
+                    </div>
+                    <div>
+                      <span className="font-medium">Undetected</span>:{' '}
+                      {scanResults.undetected}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center mt-6">
                 <button
-                  className="w-full bg-slate-800/30 p-4 rounded-lg backdrop-blur-md border border-slate-700 
-                 transform transition-all hover:bg-slate-700/50 flex items-center justify-center space-x-2"
                   onClick={handleDownloadReport}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg"
                 >
-                  <Download size={20} />
-                  <span>Download Report</span>
+                  <Download size={20} /> Download Report
                 </button>
               </div>
-            </div>)}
+            </div>
+          )}
         </div>
       </div>
     </>
   );
 }
+  
