@@ -233,7 +233,7 @@ export default function Scanner() {
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-2xl font-bold">Malware Scanner</h1>
+            <h1 className="text-2xl font-bold">Malware Scan</h1>
             {scanResults && (
               <button
                 onClick={handleReset}
