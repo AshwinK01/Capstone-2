@@ -104,23 +104,45 @@ class MalwareAnalyzer:
 
     def analyze_url(self, url):
         """
-        Analyze a URL using VirusTotal URL scanning
+        Analyze a URL using VirusTotal URL scanning with more robust error handling
         """
         try:
             client = vt.Client(VIRUSTOTAL_API_KEY)
 
-            # Scan URL
-            url_analysis = client.scan_url(url)
+            # URL encode if necessary
+            url = url.strip()
 
-            # Poll the analysis status
-            while True:
-                analysis = client.get_object(f"/analyses/{url_analysis.id}")
-                if analysis.status == "completed":
-                    break
-                time.sleep(2)
+            try:
+                # Scan URL
+                url_scan = client.scan_url(url)
+            except Exception as scan_error:
+                print(f"URL Scan Error: {scan_error}")
+                raise ValueError(f"Failed to scan URL: {str(scan_error)}")
+
+            # Poll the analysis status with timeout
+            max_attempts = 10
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    analysis = client.get_object(f"/analyses/{url_scan.id}")
+                    if analysis.status == "completed":
+                        break
+                    time.sleep(3)
+                    attempts += 1
+                except Exception as poll_error:
+                    print(f"Analysis Poll Error: {poll_error}")
+                    raise ValueError(f"Failed to poll analysis: {str(poll_error)}")
+
+            if attempts == max_attempts:
+                raise ValueError("URL analysis timed out")
 
             # Get URL report
-            url_report = client.get_object(f"/urls/{hashlib.sha256(url.encode()).hexdigest()}")
+            try:
+                url_id = hashlib.sha256(url.encode()).hexdigest()
+                url_report = client.get_object(f"/urls/{url_id}")
+            except Exception as report_error:
+                print(f"URL Report Error: {report_error}")
+                raise ValueError(f"Failed to retrieve URL report: {str(report_error)}")
 
             stats = url_report.last_analysis_stats
 
@@ -148,8 +170,8 @@ class MalwareAnalyzer:
             }
 
         except Exception as e:
-            print(f"Error analyzing URL: {e}")
-            raise ValueError(f"URL analysis failed: {str(e)}")
+            print(f"Comprehensive URL Analysis Error: {e}")
+            raise ValueError(f"Comprehensive URL analysis failed: {str(e)}")
 
 
 def allowed_file(filename):
@@ -232,19 +254,10 @@ def classify():
         return jsonify({"error": str(e)}), 500
 
 
-def validate_url(url):
-    try:
-        parsed_url = urlparse(url)
-        return all([parsed_url.scheme, parsed_url.netloc])
-    except Exception as e:
-        print(f"Error validating URL: {e}")
-        return False
-
-
 @app.route('/api/classify-url', methods=['POST'])
 def classify_url():
     """
-    API endpoint to classify a URL
+    API endpoint to classify a URL with comprehensive error handling
     """
     try:
         # Get URL from request
@@ -252,29 +265,37 @@ def classify_url():
         if not data or 'url' not in data:
             return jsonify({"error": "No URL provided"}), 400
 
-        url = data['url']
+        url = data['url'].strip()
 
-        # Add URL validation here
-        if not validate_url(url):
+        # Validate URL format
+        try:
+            parsed_url = urlparse(url)
+            if not all([parsed_url.scheme, parsed_url.netloc]):
+                return jsonify({"error": "Invalid URL format"}), 400
+        except Exception:
             return jsonify({"error": "Invalid URL format"}), 400
 
         # Validate URL connectivity
         try:
-            response = requests.head(url, timeout=5)
+            response = requests.head(url, timeout=5, allow_redirects=True)
             if response.status_code >= 400:
                 return jsonify({"error": "Invalid or unreachable URL"}), 400
         except requests.RequestException as e:
-            print(f"Error connecting to URL: {e}")
-            return jsonify({"error": "Unable to connect to URL"}), 500
+            print(f"URL Connectivity Error: {e}")
+            return jsonify({"error": "Unable to connect to URL"}), 400
 
         # Analyze URL
-        analyzer = MalwareAnalyzer()
-        result = analyzer.analyze_url(url)
-
-        return jsonify(result)
+        try:
+            analyzer = MalwareAnalyzer()
+            result = analyzer.analyze_url(url)
+            return jsonify(result)
+        except ValueError as ve:
+            print(f"URL Analysis Error: {ve}")
+            return jsonify({"error": str(ve)}), 500
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Unexpected URL Classification Error: {e}")
+        return jsonify({"error": "An unexpected error occurred during URL scanning"}), 500
 
 
 if __name__ == '__main__':

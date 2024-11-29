@@ -140,9 +140,20 @@ export default function Scanner() {
     setError('');
     setScanResults(null);
   };
+
   const handleScan = async () => {
     if (!file && !url) {
       setError('Please select a file or enter a URL');
+      return;
+    }
+
+    // Add URL validation before scanning
+    try {
+      if (url) {
+        validateUrl(url);
+      }
+    } catch (err) {
+      setError(err.message);
       return;
     }
 
@@ -168,7 +179,7 @@ export default function Scanner() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url: url.trim() }),
         });
       }
 
@@ -187,12 +198,11 @@ export default function Scanner() {
             setError('URL endpoint not found. Please check server configuration.');
             break;
           case 500:
-            setError('Server error occurred during scanning. Possible a malicious url.');
+            setError(errorMessage || 'Server error occurred during scanning. Possible malicious URL.');
             break;
           default:
             setError(errorMessage);
         }
-
         return;
       }
 
@@ -340,8 +350,7 @@ export default function Scanner() {
               </button>
             </div>
           ) : (
-
-            // Results Section (replaces the commented section in the previous code)
+            // Results Section
             <div className="space-y-6 animate-fadeIn">
               {/* File/URL Information */}
               <div className="p-6 rounded-lg bg-slate-800/30 backdrop-blur-md border border-slate-700">
